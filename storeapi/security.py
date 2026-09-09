@@ -2,7 +2,7 @@ import datetime
 import logging
 
 from fastapi import HTTPException, status
-from jose import jwt
+from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
 
 from storeapi.config import config
@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"])
 
 cradentials_exception = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED, detail="could not validate cradentials"
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="could not validate cradentials",
 )
 
 
@@ -53,5 +54,25 @@ async def authenticate_user(email: str, password: str):
     if not user:
         raise cradentials_exception
     if not varify_password(password, user.password):
+        raise cradentials_exception
+    return user
+
+
+async def get_corrent_user(token: str):
+    try:
+        payload = jwt.decode(token, config.SECRET_KEY, algorithms=[config.ALGORITHM])
+        email = payload.get("sub")
+        if email is None:
+            raise cradentials_exception
+    except ExpiredSignatureError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="token has expired",
+            headers={"WWW-authenticate": "Bearer"},
+        ) from e
+    except JWTError as e:
+        raise cradentials_exception from e
+    user = await get_user(email=email)
+    if user is None:
         raise cradentials_exception
     return user

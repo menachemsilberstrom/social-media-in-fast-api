@@ -1,6 +1,6 @@
 import pytest
 from jose import jwt
-
+from fastapi import HTTPException
 from storeapi import security
 from storeapi.config import config
 
@@ -55,3 +55,16 @@ async def test_authenticate_user_not_found():
 async def test_authenticate_user_wrong_password(registed_user: dict):
     with pytest.raises(security.HTTPException):
         await security.authenticate_user(registed_user["email"], "wrong password")
+
+
+@pytest.mark.anyio
+async def test_get_current_user(registed_user: dict):
+    token = security.cerate_access_token(registed_user["email"])
+    user = await security.get_corrent_user(token)
+    assert user.email == registed_user["email"]
+
+
+@pytest.mark.anyio
+async def test_get_current_user_invalid_token():
+    with pytest.raises(HTTPException):
+        await security.get_corrent_user("invalid token")
