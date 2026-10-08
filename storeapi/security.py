@@ -1,7 +1,9 @@
 import datetime
 import logging
 
-from fastapi import HTTPException, status
+from typing import Annotated
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
 
@@ -11,6 +13,8 @@ from storeapi.database import database, user_table
 logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(schemes=["bcrypt"])
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
 
 cradentials_exception = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -22,7 +26,7 @@ def access_token_expire_minutes():
     return 30
 
 
-def cerate_access_token(email: str):
+def create_access_token(email: str):
     logger.debug("creating acsses token", extra={"email": email})
     expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
         minutes=access_token_expire_minutes()
@@ -57,22 +61,30 @@ async def authenticate_user(email: str, password: str):
         raise cradentials_exception
     return user
 
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
-async def get_corrent_user(token: str):
     try:
         payload = jwt.decode(token, config.SECRET_KEY, algorithms=[config.ALGORITHM])
-        email = payload.get("sub")
+        email: str = payload.get("sub")
         if email is None:
-            raise cradentials_exception
+            raise credentials_exception
     except ExpiredSignatureError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="token has expired",
-            headers={"WWW-authenticate": "Bearer"},
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
         ) from e
     except JWTError as e:
-        raise cradentials_exception from e
+        raise credentials_exception from e
+
+    # שליפת המשתמש במסד הנתונים
     user = await get_user(email=email)
     if user is None:
-        raise cradentials_exception
+        raise credentials_exception
+
     return user

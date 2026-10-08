@@ -1,6 +1,7 @@
 import pytest
-from jose import jwt
 from fastapi import HTTPException
+from jose import jwt
+
 from storeapi import security
 from storeapi.config import config
 
@@ -12,7 +13,7 @@ async def test_access_token_expire_minutes():
 
 @pytest.mark.anyio
 async def test_create_access_token():
-    token = security.cerate_access_token("123")
+    token = security.create_access_token("123")
     assert {"sub": "123"}.items() <= jwt.decode(
         token, key=config.SECRET_KEY, algorithms=[config.ALGORITHM]
     ).items()
@@ -25,10 +26,10 @@ async def test_password_hashed():
 
 
 @pytest.mark.anyio
-async def test_get_user(registed_user: dict):
-    user = await security.get_user(registed_user["email"])
+async def test_get_user(registered_user: dict):
+    user = await security.get_user(registered_user["email"])
 
-    assert user.email == registed_user["email"]
+    assert user.email == registered_user["email"]
 
 
 @pytest.mark.anyio
@@ -38,11 +39,11 @@ async def test_get_user_not_found():
 
 
 @pytest.mark.anyio
-async def test_authenticate_user(registed_user: dict):
+async def test_authenticate_user(registered_user: dict):
     user = await security.authenticate_user(
-        registed_user["email"], registed_user["password"]
+        registered_user["email"], registered_user["password"]
     )
-    assert user.email == registed_user["email"]
+    assert user.email == registered_user["email"]
 
 
 @pytest.mark.anyio
@@ -52,19 +53,19 @@ async def test_authenticate_user_not_found():
 
 
 @pytest.mark.anyio
-async def test_authenticate_user_wrong_password(registed_user: dict):
+async def test_authenticate_user_wrong_password(registered_user: dict):
     with pytest.raises(security.HTTPException):
-        await security.authenticate_user(registed_user["email"], "wrong password")
+        await security.authenticate_user(registered_user["email"], "wrong password")
 
 
 @pytest.mark.anyio
-async def test_get_current_user(registed_user: dict):
-    token = security.cerate_access_token(registed_user["email"])
-    user = await security.get_corrent_user(token)
-    assert user.email == registed_user["email"]
+async def test_get_current_user(registered_user: dict):
+    token = security.create_access_token(registered_user["email"])
+    user = await security.get_current_user(token)
+    assert user["email"] == registered_user["email"]
 
 
 @pytest.mark.anyio
 async def test_get_current_user_invalid_token():
     with pytest.raises(HTTPException):
-        await security.get_corrent_user("invalid token")
+        await security.get_current_user("invalid token")
