@@ -11,8 +11,13 @@ class UserPost(UserPostIn):
     user_id: int
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
+class UserPostWithLikes(UserPost):
+    likes: int
+
+    class Config:
+        orm_mode = True
 
 class CommentIn(BaseModel):
     body: str
@@ -27,7 +32,7 @@ class Comment(CommentIn):
         from_attributes = True
 
 class UserPostWithComments(BaseModel):
-    post: UserPost
+    post: UserPostWithLikes
     comments: list[Comment]
 
 class PostLikeIn(BaseModel):

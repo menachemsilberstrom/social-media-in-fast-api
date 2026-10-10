@@ -1,9 +1,11 @@
 import logging
+from enum import Enum
 from typing import Annotated
 
+import sqlalchemy
 from fastapi import APIRouter, Depends, HTTPException
 
-from storeapi.database import comment_table, database, post_table, like_table
+from storeapi.database import comment_table, database, like_table, post_table
 from storeapi.models.post import (
     Comment,
     CommentIn,
@@ -12,12 +14,22 @@ from storeapi.models.post import (
     UserPost,
     UserPostIn,
     UserPostWithComments,
+    UserPostWithLikes,
 )
 from storeapi.models.user import User
 from storeapi.security import get_current_user
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+select_post_with_likes = (
+    sqlalchemy.select(
+        post_table,
+        sqlalchemy.func.count(like_table.c.id).label("likes"),
+    )
+    .select_from(post_table.outerjoin(like_table))
+    .group_by(post_table.c.id)
+)
 
 
 async def find_post(post_id: int):
@@ -43,10 +55,25 @@ async def create_post(
     return {**data, "id": last_record_id}
 
 
-@router.get("/post", response_model=list[UserPost])
-async def get_posts(current_user: Annotated[User, Depends(get_current_user)]):
+class PostSorting(str, Enum):
+    new = "new"
+    old = "old"
+    most_likes = "most_likes"
+
+
+@router.get("/post", response_model=list[UserPostWithLikes])
+async def get_posts(
+    current_user: Annotated[User, Depends(get_current_user)],
+    sorting: PostSorting = PostSorting.new,
+):
     logger.info("Getting all posts..")
-    query = post_table.select()
+    query = select_post_with_likes
+    if sorting == PostSorting.new:
+        query = query.order_by(sqlalchemy.desc(post_table.c.id))
+    elif sorting == PostSorting.old:
+        query = query.order_by(sqlalchemy.asc(post_table.c.id))
+    elif sorting == PostSorting.most_likes:
+        query = query.order_by(sqlalchemy.desc("likes"))
     logger.debug(query)
     return await database.fetch_all(query)
 
@@ -82,7 +109,9 @@ async def get_comments(post_id: int):
 
 @router.get("/post/{post_id}", response_model=UserPostWithComments)
 async def get_post_with_comments(post_id: int):
-    post = await find_post(post_id)
+    query = select_post_with_likes.where(post_table.c.id == post_id)
+    logger.debug(query)
+    post = await database.fetch_one(query)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     logger.info(f"Getting post and comments of post-id {post_id}")
@@ -90,8 +119,8 @@ async def get_post_with_comments(post_id: int):
     logger.debug(query)
     comments = await database.fetch_all(query)
     return {
-        "post": post,
-        "comments": comments,
+        "post": dict(post),
+        "comments": [dict(comment) for comment in comments],
     }
 
 
@@ -108,4 +137,3 @@ async def like_post(
     logger.debug(query)
     last_record_id = await database.execute(query)
     return {**new_like, "id": last_record_id}
-
