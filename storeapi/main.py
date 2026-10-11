@@ -24,6 +24,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+@app.get("/")
+def read_root():
+    return {"message": "StoreAPI is up and running!"}
+
 app.add_middleware(CorrelationIdMiddleware)
 
 app.include_router(post_router)
