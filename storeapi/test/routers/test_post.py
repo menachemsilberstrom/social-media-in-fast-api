@@ -2,6 +2,7 @@ import pytest
 from httpx import AsyncClient
 
 from storeapi import security
+from storeapi.test.conftest import confirmed_user
 
 
 async def create_post(
@@ -62,14 +63,14 @@ async def created_comment(
 
 @pytest.mark.anyio
 async def test_create_post(
-    async_client: AsyncClient, registered_user: dict, logged_in_token: str
+    async_client: AsyncClient, confirmed_user: dict, logged_in_token: str
 ):
     response = await async_client.post(
         "/post",
         json={
             "title": "Test Post",
             "description": "This is a test post.",
-            "user_id": registered_user["id"],
+            "user_id": confirmed_user["id"],
         },
         headers={"Authorization": f"Bearer {logged_in_token}"},
     )
@@ -189,10 +190,10 @@ async def test_like_post(
 
 @pytest.mark.anyio
 async def test_get_post_expired_token(
-    async_client: AsyncClient, registered_user: dict, mocker
+    async_client: AsyncClient, confirmed_user: dict, mocker
 ):
     mocker.patch("storeapi.security.access_token_expire_minutes", return_value=-1)
-    token = security.create_access_token(registered_user["email"])
+    token = security.create_access_token(confirmed_user["email"])
     response = await async_client.get(
         "/post",
         headers={"Authorization": f"Bearer {token}"},
@@ -205,7 +206,7 @@ async def test_get_post_expired_token(
 async def test_create_comment(
     async_client: AsyncClient,
     created_post: dict,
-    registered_user: dict,
+    confirmed_user: dict,
     logged_in_token: str,
 ):
     response = await async_client.post(
@@ -213,7 +214,7 @@ async def test_create_comment(
         json={
             "post_id": created_post["id"],
             "body": "This is a test comment.",
-            "user_id": registered_user["id"],
+            "user_id": confirmed_user["id"],
         },
         headers={"Authorization": f"Bearer {logged_in_token}"},
     )

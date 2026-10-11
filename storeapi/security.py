@@ -23,6 +23,7 @@ def create_credentials_exception(detail: str) -> HTTPException:
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+
 def access_token_expire_minutes():
     return 30
 
@@ -41,7 +42,7 @@ def create_access_token(email: str):
     return encodes_jwt
 
 
-def create_confirmationToken(email: str):
+def create_confirmation_token(email: str):
     logger.debug("creating confirmation token", extra={"email": email})
     expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
         minutes=confirm_token_expire_minutes()
@@ -99,6 +100,8 @@ async def authenticate_user(email: str, password: str):
         raise create_credentials_exception("Invalid email or password")
     if not varify_password(password, user.password):
         raise create_credentials_exception("Invalid email or password")
+    if not user.confirmed:
+        raise create_credentials_exception("User email is not confirmed")
     return user
 
 

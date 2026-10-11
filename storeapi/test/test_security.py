@@ -26,22 +26,25 @@ async def test_create_access_token():
 
 @pytest.mark.anyio
 async def test_create_confirmationToken():
-    token = security.create_confirmationToken("123")
+    token = security.create_confirmation_token("123")
     assert {"sub": "123", "type": "confirmation"}.items() <= jwt.decode(
         token, key=config.SECRET_KEY, algorithms=[config.ALGORITHM]
     ).items()
 
+
 @pytest.mark.anyio
 async def test_get_subject_for_token_type_valid_confirmation():
-    token = security.create_confirmationToken("123")
+    token = security.create_confirmation_token("123")
     subject = security.get_subject_for_token_type(token, "confirmation")
     assert subject == "123"
+
 
 @pytest.mark.anyio
 async def test_get_subject_for_token_type_valid_access():
     token = security.create_access_token("123")
     subject = security.get_subject_for_token_type(token, "access")
     assert subject == "123"
+
 
 @pytest.mark.anyio
 async def test_get_subject_for_token_type_expired(mocker):
@@ -52,6 +55,7 @@ async def test_get_subject_for_token_type_expired(mocker):
     assert exc_info.value.status_code == 401
     assert "Token has expired" in exc_info.value.detail
 
+
 @pytest.mark.anyio
 async def test_get_subject_for_invalid_token():
     token = "Invalid token"
@@ -59,6 +63,7 @@ async def test_get_subject_for_invalid_token():
         security.get_subject_for_token_type(token, "access")
     assert exc_info.value.status_code == 401
     assert "Invalid token" == exc_info.value.detail
+
 
 @pytest.mark.anyio
 async def test_get_subject_for_token_type_missing_sub():
@@ -94,11 +99,11 @@ async def test_get_user_not_found():
 
 
 @pytest.mark.anyio
-async def test_authenticate_user(registered_user: dict):
+async def test_authenticate_user(confirmed_user: dict):
     user = await security.authenticate_user(
-        registered_user["email"], registered_user["password"]
+        confirmed_user["email"], confirmed_user["password"]
     )
-    assert user.email == registered_user["email"]
+    assert user.email == confirmed_user["email"]
 
 
 @pytest.mark.anyio
