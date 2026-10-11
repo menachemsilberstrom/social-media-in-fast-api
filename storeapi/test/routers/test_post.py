@@ -2,7 +2,6 @@ import pytest
 from httpx import AsyncClient
 
 from storeapi import security
-from storeapi.test.conftest import confirmed_user
 
 
 async def create_post(
@@ -76,6 +75,7 @@ async def test_create_post(
     )
     assert response.status_code == 201
     assert response.json()["id"] == 1
+    assert {"image_url": None}.items() <= response.json().items()
 
 
 @pytest.mark.anyio

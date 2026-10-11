@@ -13,3 +13,4 @@ python-multipart
 passlib[bcrypt]
 aiofiles
 b2sdk
+httpx
